@@ -230,3 +230,7 @@ class HTTPNotExtended(HTTPServerError):
 
 class HTTPNetworkAuthenticationRequired(HTTPServerError):
     status_code = 511
+
+
+class UnknownFileException(Exception):
+    pass

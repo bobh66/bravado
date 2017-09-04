@@ -54,9 +54,12 @@ from six import iteritems
 from six import itervalues
 
 from bravado.docstring_property import docstring_property
+from bravado.exception import UnknownFileException
 from bravado.requests_client import RequestsClient
 from bravado.swagger_model import Loader
 from bravado.warning import warn_for_deprecated_op
+import json
+
 
 log = logging.getLogger(__name__)
 
@@ -112,6 +115,49 @@ class SwaggerClient(object):
         loader = Loader(http_client, request_headers=request_headers)
         spec_dict = loader.load_spec(spec_url)
 
+        # RefResolver may have to download additional json files (remote refs)
+        # via http. Wrap http_client's request() so that request headers are
+        # passed along with the request transparently. Yeah, this is not ideal,
+        # but since RefResolver has new found responsibilities, it is
+        # functional.
+        if request_headers is not None:
+            http_client.request = inject_headers_for_remote_refs(
+                http_client.request, request_headers)
+
+        return cls.from_spec(spec_dict, spec_url, http_client, config)
+
+    @classmethod
+    def from_file(cls, spec_file, spec_url=None, http_client=None,
+                  request_headers=None, config=None):
+        """Build a :class:`SwaggerClient` from a file containing the Swagger
+        specification for a RESTful API.
+
+        :param spec_file: JSON or YAML file containing at the swagger API
+            specification
+        :type spec_file: str
+        :param spec_url: the url used to retrieve the spec_file
+        :type  spec_url: str
+        :param http_client: an HTTP client used to perform requests
+        :type  http_client: :class:`bravado.http_client.HttpClient`
+        :param request_headers: Headers to pass with http requests
+        :type  request_headers: dict
+        :param config: Config dict for bravado and bravado_core.
+            See CONFIG_DEFAULTS in :module:`bravado_core.spec`.
+            See CONFIG_DEFAULTS in :module:`bravado.client`.
+
+        :rtype: :class:`bravado_core.spec.Spec`
+        """
+        log.debug(u"Loading from %s" % spec_file)
+        if spec_file.endswith('.json'):
+            with open(spec_file, 'r') as f:
+                spec_dict = json.loads(f.read())
+        elif spec_file.endswith('.yml') or spec_file.endswith('.yaml'):
+            with open(spec_file, 'r') as f:
+                spec_yaml = f.read()
+            spec_dict = Loader(None).load_yaml(spec_yaml)
+        else:
+            raise UnknownFileException('Unknown file suffix on file {}'.
+                                       format(spec_file))
         # RefResolver may have to download additional json files (remote refs)
         # via http. Wrap http_client's request() so that request headers are
         # passed along with the request transparently. Yeah, this is not ideal,

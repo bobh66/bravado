@@ -8,6 +8,28 @@ import pytest
 import requests
 
 from bravado.client import SwaggerClient
+from bravado.exception import UnknownFileException
+
+
+class SwaggerCientFileTest(unittest.TestCase):
+    def test_from_json_file(self):
+        client_stub = SwaggerClient.from_file(
+            'test-data/2.0/simple/swagger.json')
+        assert isinstance(client_stub, SwaggerClient)
+
+    def test_from_yaml_file(self):
+        client_stub = SwaggerClient.from_file(
+            'test-data/2.0/simple/swagger.yaml')
+        assert isinstance(client_stub, SwaggerClient)
+
+    def test_from_yml_file(self):
+        client_stub = SwaggerClient.from_file(
+            'test-data/2.0/simple/swagger.yml')
+        assert isinstance(client_stub, SwaggerClient)
+
+    def test_from_bad_file(self):
+        with pytest.raises(UnknownFileException):
+            SwaggerClient.from_file('test-data/2.0/simple/swagger.jsn')
 
 
 @pytest.mark.xfail
